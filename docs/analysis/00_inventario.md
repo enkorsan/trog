@@ -1,0 +1,36 @@
+# Inventario del repositorio (raiz de enkorsan/trog)
+
+Estado: listado de nombres y tamanos obtenido con el conector GitHub el 12-oct-2026. El contenido solo se ha leido en los archivos marcados como leidos.
+
+## Carpetas
+- LA5/: READ.ME, TROGU89.PP, TROGU105.PP (binarios, ROMs de programa segun ROMS.DOC). Sin fuente.
+- LA3/: TROG428.0, TROG428.1, TROGFE.0, TROGFE.1 (binarios).
+- NES1/, NES2/, IMG/, SOUND/: sin revisar.
+
+## Construccion y documentacion
+MAKEFILE, TROG.CMD, TROGKURT.CMD, READ.ME, ROMS.DOC, ROUTINES.DOC, TROGIO.DOC, TROGPROJ.DOC, TROGIDEA.DOC, TROGWARE.DOC, PATCH.TXT y los .BAT (DGASM, DGASML, MAKEALL, CLEANUP, etc.).
+
+## Modulos principales (OBJS del MAKEFILE)
+TROGRAM, TROG, TROGUTIL, TROGPALL, TROGBGND, IMGPAL, IMGTBL, BGNDTBL, BGNDPAL, TROGPROC, TROGDISP, TROGSND, TROGTV, TROGPOST, TROGBAR, TROGDINO, TROGMISC, TROGTEXT, TROGCOL, TROGMAPS, TROGDDAT, TROGTROG, TROGTDAT, TROGENEM, TROGEGGS, TROGWHL, TROGDRON, TROGSPRG, TROGWAVE, TROGTREX, TROGDIN2. Todos presentes en el repositorio.
+
+## Modulos TROGKURT (KOBJS)
+TROGMENU, TROGHSTD, TROGJUNK, SYSFONT, TROGDUTL, TROGDTST, TROGCOIN, TROGSCOR, TROGATT, TROGADJ, TROGPRNT, TROGCAVE, TROGFADE, TROGWORD, TROGCAT, TROGHAUS. Todos presentes.
+
+## Equivalencias e includes
+TROGEQU, TROGSEQU, TROGAEQU, TROGMEQU, TROGAUDN, MPROCEQU, DISPEQU, GSPINC, SYSINC, STRING.H, TROGMACS.LIB, IMGTBL.GLO, BGNDTBL.GLO.
+
+## Tablas de imagenes
+TROGDDAT.TBL, TROGTDAT.TBL, TROGENEM.TBL, TROGTREX.TBL, TROGWHL.TBL, TROGSPRG.TBL, TROGCAVE.TBL, TROGTEXT.TBL, TROGSCOR.TBL.
+
+## Presentes pero no incluidos en OBJS ni KOBJS
+TROGWAND.ASM, TROGTEE.ASM, TROGDICT.ASM, TROGTIPS.ASM, TROGCMOS.ASM, TROGCHIP.ASM, SECCHIP.ASM. Funcion sin comprobar salvo lo indicado abajo.
+
+## Resultados generados
+TROG.MAP, TROG.OUT, TROGKURT.MAP, TROGKURT.RLO, TROGFE.0, TROGFE.1.
+
+## Leidos hasta ahora
+- TROGDIP.ASM: ecuaciones de interruptores DIP (cocktail, coinage, pais, jugadores, test). Sin logica de juego.
+- TROGDRON.ASM: el codigo de drones esta dentro de .IF 0; las versiones activas de DRONE_DELETE y CLR_DRONE solo hacen RETS.
+- TROGDINO.ASM completo (7 partes, 4743 lineas).
+- TROGMAPS.ASM, TROGEQU.ASM, TROGSEQU.ASM, TROGPROC.ASM, TROGCOL.ASM, TROGRAM.ASM, TROGWAVE.ASM.
+- Lecturas parciales (solo el inicio): TROGPOST, TROGMISC, TROGUTIL, TROGENEM, TROGEGGS, TROGTROG, TROGBGND, TROGDISP, TROGTDAT, TROGDDAT, TROGTREX, TROGWHL, TROGSPRG, TROGJUNK.
