@@ -1,7 +1,7 @@
 ; ============================================================================
 ; bench_r6.asm - BANCO DE PRUEBAS R6 (render): R5 con Trog distinto del dino, entidades "sucias" por cambio de imagen en el sitio (giro, puñetazo),
 ;   caida por el borde con animacion, desaparicion y reaparicion lejos.
-; R6.2: MG (media de las 64 primeras ventanas) y WN (peor media de ventana) sustituyen a LIBRE y MIN de la ultima ventana. R6.1: instrumentacion corregida (PC/PT = deficit de fotogramas sin HUD / total; V = velocidad en el HUD). Estado del codigo: PROPUESTO (sin ensamblar ni probar). El algoritmo (indicador de sucia, acciones en el sitio, caida con animacion, ocultacion, reaparicion
+; R6.3: HUD de depuracion en la mitad derecha (columnas 16-31); la izquierda queda libre (solo configuracion, V y VENT del banco). R6.2: MG (media de las 64 primeras ventanas) y WN (peor media de ventana) sustituyen a LIBRE y MIN de la ultima ventana. R6.1: instrumentacion corregida (PC/PT = deficit de fotogramas sin HUD / total; V = velocidad en el HUD). Estado del codigo: PROPUESTO (sin ensamblar ni probar). El algoritmo (indicador de sucia, acciones en el sitio, caida con animacion, ocultacion, reaparicion
 ;   en otro nodo, recorte, ruta lenta y prioridad) se verifico con un modelo en Python: 0 diferencias respecto a la imagen ideal en 4.000 fotogramas con 1, 3, 5
 ;   (dos semillas) y 8 entidades, con unas 70 caidas y reapariciones por prueba. Las rutinas en Z80 no se han ejecutado.
 ; Colocar junto a main.asm junto con sprite_trog.inc (generado por tools/make_trog_placeholder.py). Usa ademas config.inc, video.inc, stones.inc,
@@ -33,8 +33,8 @@ BENCH_ACT       EQU 1           ; 1 = acciones en el sitio (cambio de imagen sin
 BENCH_FALL      EQU 1           ; 1 = caida por el borde, desaparicion y reaparicion
 BENCH_SPRBANK   EQU 2           ; banco de los datos de sprites: 2 (residente), 1, 3, 4, 6 o 7
 BENCH_SKIP_BLIT EQU 0
-BENCH_SKIP_SORT EQU 0
-BENCH_BURN      EQU 584
+BENCH_SKIP_SORT EQU 1
+BENCH_BURN      EQU 292
     ASSERT BENCH_N >= 1 && BENCH_N <= 8
     ASSERT BENCH_SPEED >= 1 && BENCH_SPEED <= 9
     ASSERT BENCH_SPRBANK == 1 || BENCH_SPRBANK == 2 || BENCH_SPRBANK == 3 || BENCH_SPRBANK == 4 || BENCH_SPRBANK == 6 || BENCH_SPRBANK == 7
@@ -394,7 +394,7 @@ report_step:
     ld l,a
     ld a,(rep_stage)
     inc a
-    cp 9
+    cp 8
     jr c,.n
     xor a
 .n:
@@ -403,21 +403,19 @@ report_step:
 
 rep_tab:
     DW rep_vent
-    DB 0,24
-    DW rep_mean
-    DB 8,6
-    DW rep_mina
-    DB 8,16
-    DW rep_solx
-    DB 8,26
+    DB 8,8
     DW rep_mg
-    DB 16,3
+    DB 0,19
     DW rep_wn
-    DB 16,11
+    DB 0,27
+    DW rep_mina
+    DB 8,19
+    DW rep_solx
+    DB 8,27
     DW rep_pc
-    DB 16,22
+    DB 16,19
     DW rep_pt
-    DB 16,28
+    DB 16,27
 
 frame_isr:
     push af
@@ -1652,79 +1650,75 @@ hud_labels:
     ld b,0
     ld c,0
     call b_print_text
-    ld hl,txt_vent
-    ld b,0
-    ld c,19
-    call b_print_text
-    ld hl,txt_media
+    ld hl,txt_v
     ld b,8
     ld c,0
     call b_print_text
-    ld hl,txt_mina
+    ld hl,txt_vent
     ld b,8
-    ld c,11
-    call b_print_text
-    ld hl,txt_solx
-    ld b,8
-    ld c,21
+    ld c,3
     call b_print_text
     ld hl,txt_mg
-    ld b,16
-    ld c,0
+    ld b,0
+    ld c,16
     call b_print_text
     ld hl,txt_wn
-    ld b,16
-    ld c,8
+    ld b,0
+    ld c,24
+    call b_print_text
+    ld hl,txt_mn
+    ld b,8
+    ld c,16
+    call b_print_text
+    ld hl,txt_sx
+    ld b,8
+    ld c,24
     call b_print_text
     ld hl,txt_pc
     ld b,16
-    ld c,20
+    ld c,16
     call b_print_text
     ld hl,txt_pt
     ld b,16
-    ld c,26
+    ld c,24
     call b_print_text
     ld hl,0
+    ld b,8
+    ld c,8
+    call b_print_dec4
+    ld hl,0
     ld b,0
-    ld c,24
+    ld c,19
+    call b_print_dec4
+    ld hl,0
+    ld b,0
+    ld c,27
     call b_print_dec4
     ld hl,0
     ld b,8
-    ld c,6
+    ld c,19
     call b_print_dec4
     ld hl,0
     ld b,8
-    ld c,16
-    call b_print_dec4
-    ld hl,0
-    ld b,8
-    ld c,26
+    ld c,27
     call b_print_dec4
     ld hl,0
     ld b,16
-    ld c,3
+    ld c,19
     call b_print_dec4
     ld hl,0
     ld b,16
-    ld c,11
-    call b_print_dec4
-    ld hl,0
-    ld b,16
-    ld c,22
-    call b_print_dec4
-    ld hl,0
-    ld b,16
-    ld c,28
+    ld c,27
     call b_print_dec4
     ret
 
-txt_cfg:    DB "N",'0'+BENCH_N,"E",'0'+BENCH_STAGGER,"S",'0'+BENCH_SLOW,"P",'0'+BENCH_STOP,"G",'0'+BENCH_EDGE,"A",'0'+BENCH_ACT,"F",'0'+BENCH_FALL,"B",'0'+BENCH_SPRBANK,"V",'0'+BENCH_SPEED,0
+txt_cfg:    DB "N",'0'+BENCH_N,"E",'0'+BENCH_STAGGER,"S",'0'+BENCH_SLOW,"P",'0'+BENCH_STOP,"G",'0'+BENCH_EDGE,"A",'0'+BENCH_ACT,"F",'0'+BENCH_FALL,"B",'0'+BENCH_SPRBANK,0
+txt_v:      DB "V",'0'+BENCH_SPEED,0
 txt_vent:   DB "VENT",0
-txt_media:  DB "MEDIA",0
-txt_mina:   DB "MINA",0
-txt_solx:   DB "SOLX",0
 txt_mg:     DB "MG",0
 txt_wn:     DB "WN",0
+txt_mn:     DB "MN",0
+txt_sx:     DB "SX",0
 txt_pc:     DB "PC",0
 txt_pt:     DB "LT",0
 
