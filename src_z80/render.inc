@@ -1,6 +1,8 @@
 ; ============================================================================
 ; render.inc - CONTRATO DEL RENDERER (paso 0 de la integracion)
-; Estado: PROPUESTO (sin ensamblar ni probar). Ver docs/decisions_render_update_3.md (rev. 1).
+; Estado: ENSAMBLADO Y PROBADO POR CARLOS (informado, 16-oct) como parte de game_r7.asm, en RVM 128K y 48K, con ENT_COUNT = 1.
+;   Sin probar todavia: decor_rect, STAT_BUF, E_IMG 4..7 (diagonales), SPR_BANK distinto de 2 y ENT_COUNT > 1.
+; Ver docs/decisions_render_update_3.md (rev. 1).
 ; Requiere config.inc antes (SPR_H, SPR_OFF_Y, CLIP_TOP, CLIP_BOTTOM, NODE_*, D_*).
 ; El fichero principal define ANTES de incluirlo: ENT_COUNT (1..MAX_ENTS).
 ; Opcional: -DTARGET_48K en la linea de comandos (sjasmplus 1.24.0: -D<NAME>[=<value>]) => sin paginacion ni AY.

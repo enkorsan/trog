@@ -1,6 +1,8 @@
 ; ============================================================================
 ; dino_r7.inc - logica del dino como ENTIDAD 0 del renderer (esqueleto, paso 1)
-; Estado: PROPUESTO (sin ensamblar ni probar).
+; Estado: PROBADO POR CARLOS (informado, 16-oct) dentro de game_r7.asm, en RVM 128K y 48K: control OPQA, giros, caidas con la animacion
+;   provisional, desaparicion y reaparicion, sin restos en pantalla ni perdida de fotogramas. La reaparicion es SIEMPRE en el nodo de salida
+;   (provisional). Velocidad cronometrada 4,75 a 4,80 s para 8 intervalos (MAME 4,78 s). Probado solo con ENT_COUNT = 1.
 ; Origen: src_z80/dino.inc (version previa): mod_step, node_offset, update_request, dir_from_mask, turn_node, move_dino, check_fall
 ;   se copian con estos cambios: dino_x/dino_y/dino_dir -> (ENT0+E_X/E_Y/E_DIR); sin sprite_erase/sprite_draw/saved_valid
 ;   (se marca dino_dirty y game_update llama a ent_set_qpos); acumulador modulo SPEED_MOD; caida = animacion del banco R6.
