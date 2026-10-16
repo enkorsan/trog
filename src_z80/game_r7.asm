@@ -1,17 +1,16 @@
 ; ============================================================================
-; game_r7.asm - ESQUELETO del juego sobre el renderer (paso 1 del plan de integracion)
-; Estado: PROPUESTO (sin ensamblar ni probar). Contrato: docs/decisions_render_update_3.md (rev. 1) y render.inc.
+; game_r7.asm - ESQUELETO del juego sobre el renderer (paso 1 del plan de integracion), revision 2
+; Estado: ENSAMBLADO Y PROBADO POR CARLOS (informado, 16-oct) en RVM 128K y 48K. El asistente no ha ejecutado nada.
+;   Contrato: docs/decisions_render_update_3.md (rev. 1) y render.inc.
 ; Contenido: bucle blit_all -> logica -> prepare_all -> frame_wait (un paso por iteracion, espera por contador, sin HALT),
-;   dino como entidad 0 (dino_r7.inc), velocidad SPEED_BASE/SPEED_MOD = 26/64, HUD de teclas a la izquierda y contadores LT/PC.
-; DEPENDE DE render_core.inc, que AUN NO EXISTE: debe extraerse del R6.3 (bench_r6.asm / src/bench_r6_integracion.asm):
-;   ent_set_qpos, ent_prep1, ent_prep2, ent_hits_other, ent_q_intersects, ent_pre, ent_post, nb_range, draw_clipped, sort_z,
-;   ent_blit, prepare_all, blit_all, build_bg, b_print_dec4 (y sus datos: pdtab, pdline, pdcol), con los labels ents/scr_bufs/qpos/zlist
-;   sustituidos por ENTS/SCR_BUFS/QPOS/ZLIST y sin BENCH_*. Hasta entonces este fichero no ensambla.
-; Para 48K: sjasmplus -DTARGET_48K (no probado).
-; Compilacion prevista (Windows, desde la raiz): sjasmplus --nologo --msg=err --lst=build/game_r7.lst --sym=build/game_r7.sym -Isrc src/game_r7.asm
+;   dino como entidad 0 (dino_r7.inc), velocidad SPEED_BASE/SPEED_MOD = 26/64, HUD de teclas a la izquierda y contadores PC/LT a la derecha.
+; Renderer: render_core.inc (extraido del R6.3, ver su cabecera). render_init vive alli.
+; Archivos necesarios en src/: config.inc, render.inc, render_core.inc, dino_r7.inc, input_hud.inc, video.inc, stones.inc, font_msg.inc,
+;   sprite_dino.inc, sprite_trog.inc y este fichero.
+; Compilacion (Windows, desde la raiz): build_game_r7.bat (128K) o build_game_r7_48.bat (-DTARGET_48K). Salida: build/game_r7.sna o build/game_r7_48.sna.
 ; ============================================================================
 ENT_COUNT       EQU 1           ; solo el dino
-DBG_HUD         EQU 1           ; 1 = LT y PC en la mitad derecha del HUD (fila 2, columnas 19 y 27)
+DBG_HUD         EQU 1           ; 1 = PC y LT en la mitad derecha del HUD (linea 16, columnas 19 y 27)
 
     IFDEF TARGET_48K
     DEVICE ZXSPECTRUM48
@@ -49,6 +48,9 @@ start:
     call draw_field
     call draw_stones
     call draw_hud_glyphs
+    IF DBG_HUD
+    call dbg_labels
+    ENDIF
 
     PAGE_BG
     call build_bg               ; fondo limpio (sin sprites) en BG_BASE
@@ -132,7 +134,30 @@ frame_wait:
     ret
 
     IF DBG_HUD
-; dbg_hud - cada 16 iteraciones escribe PC (columna 19) y 8 despues LT (columna 27), linea 16 (fila de caracteres 2). Altera: todos
+; dbg_labels - etiquetas PC y LT y valores iniciales. Altera: todos
+dbg_labels:
+    ld hl,txt_pc
+    ld b,16
+    ld c,16
+    call b_print_text
+    ld hl,txt_lt
+    ld b,16
+    ld c,24
+    call b_print_text
+    ld hl,0
+    ld b,16
+    ld c,19
+    call b_print_dec4
+    ld hl,0
+    ld b,16
+    ld c,27
+    call b_print_dec4
+    ret
+
+txt_pc:     DB "PC",0
+txt_lt:     DB "LT",0
+
+; dbg_hud - cada 16 iteraciones escribe PC (columna 19) y 8 despues LT (columna 27), linea 16. Altera: todos
 dbg_hud:
     ld a,(dbg_tick)
     inc a
@@ -163,50 +188,6 @@ dbg_hud:
     jp b_print_dec4
     ENDIF
 
-; render_init - fija E_SBUF, E_IDX y E_TIE de las ENT_COUNT entidades, y rellena ZLIST. (Pertenece al renderer: mover a render_core.inc.)
-render_init:
-    ld hl,ENTS
-    ld de,ENTS+1
-    ld bc,MAX_ENTS*ENT_SIZE-1
-    ld (hl),0
-    ldir
-    ld ix,ENTS
-    ld hl,SCR_BUFS
-    ld b,ENT_COUNT
-    ld c,0
-.l:
-    ld (ix+E_SBUF),l
-    ld (ix+E_SBUF+1),h
-    ld (ix+E_IDX),c
-    ld a,c
-    or a
-    jr nz,.tie
-    ld a,255
-.tie:
-    ld (ix+E_TIE),a
-    ld de,WIN_BUF
-    add hl,de
-    ld de,ENT_SIZE
-    add ix,de
-    inc c
-    djnz .l
-    ld hl,ENTS
-    ld de,ZLIST
-    ld b,ENT_COUNT
-.z:
-    ld a,l
-    ld (de),a
-    inc de
-    ld a,h
-    ld (de),a
-    inc de
-    push de
-    ld de,ENT_SIZE
-    add hl,de
-    pop de
-    djnz .z
-    ret
-
 frame_isr:
     push af
     ld a,(frame_counter)
@@ -231,17 +212,18 @@ dinitdir:       DB 0
 dino_dirty:     DB 0
 
     INCLUDE "dino_r7.inc"
-    INCLUDE "render_core.inc"       ; POR EXTRAER del R6.3
+    INCLUDE "render_core.inc"
     INCLUDE "input_hud.inc"         ; read_keys, show_keys, draw_hud_glyphs, font_digits
     INCLUDE "video.inc"             ; pixel_addr, down_hl, draw_field, draw_stones
 
 ; ---- Datos ------------------------------------------------------------------
+    IF SPR_BANK == 2
     INCLUDE "sprite_dino.inc"
     INCLUDE "sprite_trog.inc"       ; ent_set_qpos referencia sprite_trog aunque ENT_COUNT = 1
+    ENDIF
     INCLUDE "stones.inc"
     INCLUDE "font_msg.inc"
 
-    ASSERT (sprite_dino_end - sprite_dino) == IMG_COUNT*4*144
     ASSERT $ <= SCR_BUFS
 
 ; ---- Tabla IM2 y salto a la rutina ---------------------------------------------
@@ -250,4 +232,18 @@ dino_dirty:     DB 0
     ORG IM2_VECTOR
     jp frame_isr
 
+    IF SPR_BANK != 2
+    SLOT 3
+    PAGE SPR_BANK
+    ORG $C000
+    INCLUDE "sprite_dino.inc"
+    INCLUDE "sprite_trog.inc"
+    ENDIF
+
+    ASSERT (sprite_dino_end - sprite_dino) == IMG_COUNT*4*144
+
+    IFDEF TARGET_48K
+    SAVESNA "build/game_r7_48.sna", start
+    ELSE
     SAVESNA "build/game_r7.sna", start
+    ENDIF
