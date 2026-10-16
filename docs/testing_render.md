@@ -1,13 +1,13 @@
 # Pruebas del renderer R1-R6.3
 
-Version: 16-oct-2026, revision 2 del suplemento a testing.md revision 12.
+Version: 16-oct-2026, revision 3 del suplemento a testing.md revision 12.
 No sustituye los procedimientos ni regresiones del juego del documento anterior.
 
 ## Entorno
 - sjasmplus 1.24.0.
 - RVM, ZX Spectrum 128K original toastrack. Version del emulador aun sin registrar.
 - Carlos compila con build_bench.bat (ejemplo: build_bench.bat src/bench_r6_integracion). El nombre del .sna lo fija el SAVESNA del fichero. Para tamano y direcciones se ensambla con --lst y --sym.
-- Carpeta local src/, GitHub src_z80/.
+- Carpeta local src/, GitHub src_z80/. El R6.3 esta en src_z80/bench_r6.asm (commit 08d29fd).
 - El asistente no ha ensamblado ni ejecutado emulacion; los resultados reales son los informados por Carlos.
 
 ## Estado de validacion
@@ -16,7 +16,7 @@ No sustituye los procedimientos ni regresiones del juego del documento anterior.
 | R1 a R5 | confirmado por Carlos | como en la revision 1 |
 | R6 | confirmado por Carlos | Trogs distintos, acciones y caidas |
 | R6.1 y R6.2 | confirmado por Carlos | instrumentacion corregida, MG, WN, STOPVENT, BURN, SKIP; tablas en analysis/render_mediciones_r6_2.md |
-| R6.3 | ensamblado por Carlos; HUD de la mitad derecha confirmado visualmente (16-oct) | copia local src/bench_r6_integracion.asm |
+| R6.3 | ensamblado por Carlos; HUD de la mitad derecha confirmado visualmente (16-oct) | repositorio: src_z80/bench_r6.asm; local: src/bench_r6_integracion.asm |
 
 ## Correcciones que debe contener la copia vigente
 1. init_ents: PUSH BC / PUSH HL / CALL ent_set_qpos / POP HL / POP BC.
@@ -31,16 +31,22 @@ No sustituye los procedimientos ni regresiones del juego del documento anterior.
 - MG y WN en unidades de 70 T; MINA en 35 T. Son aproximaciones.
 - BENCH_STOPVENT congela el HUD al llegar a VENT = N (0 = no parar).
 - BENCH_BURN anade 24 T por vuelta (292 vueltas = unos 7.000 T). BENCH_SKIP_BLIT y BENCH_SKIP_SORT quitan una fase y son solo de medida.
-- Ponga BENCH_BURN, BENCH_SKIP_BLIT y BENCH_SKIP_SORT a 0 para medir una base.
+- El fichero del repositorio trae BENCH_BURN = 292 y BENCH_SKIP_SORT = 1 (como se probo). Poner BENCH_BURN, BENCH_SKIP_BLIT y BENCH_SKIP_SORT a 0 para medir una base.
 - cnt_hud y def_hud se acumulan en memoria y no se muestran.
 
-## Protocolo de medida
+## Protocolo de medida del rendimiento
 1. Misma configuracion y mismo BENCH_STOPVENT (64).
 2. Anotar N, E, S, P, G, A, F, B, V, VENT, BURN, SKIP_BLIT, SKIP_SORT, MG, WN, MINA, SOLX, PC y LT.
 3. Una ejecucion base y las de carga artificial en la misma sesion.
 4. No mezclar mediciones de maquinas distintas ni de compilaciones distintas sin anotarlo (SX distinto entre compilaciones: ver analysis/render_mediciones_r6_2.md).
 5. Tabla base: N5 E1 S1 P0 G0 A0 F0; N5 con A1; N5 con F1; N5 E2 P1 A1 F1; N8 E2 P1 A1 F1.
-6. Margen del peor caso: N8 con BURN 0, 146, 292 y 584 (3.500, 7.000 y 14.000 T extra).
+6. Margen del peor caso: N8 con BURN 0, 146, 292 y 584 (3.500, 7.000 y 14.000 T extra), con SKIP_SORT = 0.
+
+## Protocolo de medida de la velocidad (16-oct)
+- Cronometrar al dino cruzando el ancho de la isla: 8 intervalos entre nodos (9 intersecciones), 256 px del arcade o 192 px del port. Velocidad en nodos por segundo: 8 / T.
+- Las lecturas visuales tienen un sesgo de aproximadamente +2,5 % sobre la teoria tanto en MAME como en el Spectrum; se comparan lecturas del mismo metodo entre si, sin corregirlas.
+- Referencias: teoria del arcade a 55 fps, 4,66 s; lectura en MAME, 4,78 s; Spectrum con 7/16 (banco o juego previo), 4,51 s (teoria 4,39 s). Objetivo del port con base 26/64: teoria 4,73 s, lectura esperada unos 4,85 s (1,6 % mas lento que MAME).
+- Tras integrar el modulo 64, repetir la lectura en el Spectrum y anotar el resultado; la base puede ajustarse despues.
 
 ## Regresiones visuales del renderer
 - Mascaras correctas sobre piedras, agua y vecinos.
@@ -53,11 +59,12 @@ No sustituye los procedimientos ni regresiones del juego del documento anterior.
 - Al reaparecer lejos, solo ventana nueva; no limpiar un rectangulo enorme entre ambas posiciones.
 - Verificar solapes con entidades quietas.
 - HUD de depuracion: legible en la mitad derecha, sin invadir la izquierda.
+- Retirada de huevos (nuevo): sin hueco negro; restaurar el suelo decorado bajo el huevo, tambien con el dino encima; sin restos al cruzarse el dino con un Trog sobre el nodo.
 
 ## Pruebas pendientes
-- SKIP_SORT 0/1 repetido en la misma sesion con BURN anotado.
 - Pila fuera del banco 5 y comparacion de MG.
 - Variante 48K (DEVICE ZXSPECTRUM48) y RVM modelo 48K.
+- Lectura de velocidad tras el modulo 64.
 
 ## Al integrar en el juego
 Ademas de lo anterior: teclado, giros, caidas (animacion sin parpadeo), paradas e invencibilidad, recogida de huevos y contador, casa y letrero, llegada, victoria y reinicio. Las animaciones del bench no validan las reglas arcade ni sustituyen pruebas de juego.

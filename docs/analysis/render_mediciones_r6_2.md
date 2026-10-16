@@ -1,9 +1,9 @@
 # Mediciones R6.2 y R6.3 del renderer
 
-Version: 16-oct-2026. Fuentes: tablas informadas por Carlos (15-oct), captura de pantalla del R6.3 (16-oct), listado y simbolos del R6.3 (bench_r6_integracion-2.lst y -3.sym) y calculos del asistente. Distincion obligatoria: medida de Carlos, calculo estatico del asistente y estimacion no son equivalentes. El asistente no ha ejecutado sjasmplus ni emulador.
+Version: 16-oct-2026, revision del 04:10. Fuentes: tablas informadas por Carlos (15-oct), captura de pantalla del R6.3 (16-oct), listado y simbolos del R6.3 (bench_r6_integracion-2.lst y -3.sym) y calculos del asistente. Distincion obligatoria: medida de Carlos, calculo estatico del asistente y estimacion no son equivalentes. El asistente no ha ejecutado sjasmplus ni emulador.
 
 ## Condiciones
-RVM 128K toastrack, sjasmplus 1.24.0, velocidad V7 (7 de 16 por fotograma, pasos de 2 px), HUD congelado en VENT = 64 (BENCH_STOPVENT), unas 4.100 iteraciones medidas (unos 90 s). La misma configuracion repetida da el mismo MG: el banco es reproducible dentro de una compilacion.
+RVM 128K toastrack, sjasmplus 1.24.0, velocidad V7 (7 de 16 por fotograma, pasos de 2 px), HUD congelado en VENT = 64 (BENCH_STOPVENT), unas 4.100 iteraciones medidas (unos 90 s). La misma configuracion repetida da el mismo MG: el banco es reproducible dentro de una compilacion. Estas tablas se tomaron con modulo 16; la velocidad base del juego sera 26/64 (ver decisions_render_update_2.md), un 7 % menos de movimientos.
 
 ## Definiciones del HUD
 - MG: media del tiempo libre de las 64 primeras ventanas (de 64 iteraciones medidas). MG x 70 = T-states libres medios por fotograma. Valida con VENT >= 64.
@@ -26,7 +26,7 @@ RVM 128K toastrack, sjasmplus 1.24.0, velocidad V7 (7 de 16 por fotograma, pasos
 
 Equivalencias (MG x 70): N5 base 42.900 T libres (60 %), N5 con F 48.650 T (69 %), N5 E2 P1 A1 F1 50.750 T (72 %), N8 35.700 T (50 %). WN de N8: 16.000 T libres (22,5 %).
 
-## Tabla 2: carga artificial (N8 E2 S1 P1 A1 F1; BENCH_BURN x 24 T por fotograma)
+## Tabla 2: carga artificial (N8 E2 S1 P1 A1 F1; BENCH_BURN x 24 T por fotograma; BENCH_SKIP_SORT = 0, confirmado por Carlos)
 | BENCH_BURN | T extra | MG | WN | MINA | PC | LT |
 |---:|---:|---:|---:|---:|---:|---:|
 | 0 | 0 | 510 | 228 | 0 | 0 | 21 |
@@ -40,16 +40,15 @@ Equivalencias (MG x 70): N5 base 42.900 T libres (60 %), N5 con F 48.650 T (69 %
 - Sin deficit sostenido hasta +7.000 T por fotograma; con +14.000 T aparecen 2 fotogramas perdidos en unos 90 s. Valido para esa trayectoria (primeras 64 ventanas con esa semilla).
 - LT crece mas que proporcionalmente entre +7.000 T (99) y +14.000 T (309): se acerca al limite.
 - Con HALT (juego anterior) una iteracion tardia pierde un paso de logica; los resultados de este banco valen para espera por contador, que la absorbe.
-- Confirmar si la tabla 2 se tomo con BENCH_SKIP_SORT = 0.
 - No se declara margen cerrado del juego: faltan IA, colisiones, sonido, animaciones, cambios de fondo y contencion real.
 
 ## Ablacion de la primera tanda (no valida)
 BENCH_SKIP_BLIT solo envolvia el volcado inicial de start, no el del bucle, y la diferencia con BENCH_SKIP_SORT (MEDIA 552 frente a 534) no esta explicada. No se usan para repartir costes.
 
-## Captura del R6.3 (16-oct)
+## Captura del R6.3 (16-oct) y coste de la ordenacion
 Configuracion en pantalla N8 E2 S1 P1 G0 A1 F1 B2, V7, VENT 0064. Mitad derecha: MG 0424, WN 0203, MN 0000, SX 0121, PC 0000, LT 0065. El .sym de esa compilacion indica BENCH_BURN = 292 y BENCH_SKIP_SORT = 1 (BENCH_SKIP_BLIT = 0).
-Lectura condicionada (si captura y .sym corresponden a la misma ejecucion y la tabla 2 se tomo con SKIP_SORT = 0): frente a la fila BURN 292 (MG 410, WN 124, LT 99), sin ordenacion MG sube 14 unidades (unos 1.000 T por fotograma), WN sube 79 (unos 5.500 T en la peor ventana) y LT baja de 99 a 65. Seria compatible con una ordenacion cara en las ventanas mas cargadas.
-Cautela: SX es 121 frente a 153 de la tabla 1, cuando las trayectorias identicas darian el mismo valor; no esta explicado, asi que la comparacion entre compilaciones es debil. Repetir con SKIP_SORT = 0 y 1 en la misma sesion y anotar BURN.
+Comparada con la fila BURN 292 de la tabla 2 (SKIP_SORT = 0: MG 410, WN 124, LT 99), quitar la ordenacion sube MG 14 unidades (unos 1.000 T por fotograma de media), WN 79 (unos 5.500 T en la peor ventana) y baja LT de 99 a 65. Es compatible con una ordenacion cara en las ventanas mas cargadas.
+Cautela: SX es 121 frente a 153 de la tabla 1, cuando trayectorias identicas darian el mismo valor; no esta explicado, asi que la comparacion entre compilaciones (R6.2 y R6.3) es debil. Repetir con SKIP_SORT = 0 y 1 en la misma sesion y anotar BURN.
 
 ## Calculo estatico de T-states (asistente, sobre el fuente, sin contencion)
 | Fase de una ventana de 25 lineas | Coste |
@@ -64,12 +63,12 @@ Mas unos 500 T fijos por entidad y fotograma y unos 600 T del bucle. Para N5 bas
 Candidatos de optimizacion (estimaciones, no aplicados):
 | Cambio | Ahorro |
 |---|---|
-| Bajar la velocidad de V7 a V6 | 14 % de ventanas (unos 4.400 T por fotograma en N8) |
+| Bajar la velocidad de 7/16 a 26/64 | 7 % de movimientos (unos 2.700 T por fotograma en N8); decidido por fidelidad con el arcade |
 | Ordenar con claves de un byte en vez de IX/IY | unos 1.200 T por fotograma en N8 |
 | Volcado por tramos de fila de caracteres | unos 450 T por ventana |
 | Desenrollar los bucles de composicion | unos 312 T por ventana (1,1 KB mas de codigo) |
 | Recortar el preambulo de ent_prep1 | unos 250 T por ventana |
-Costo marginal por entidad andando a V7: unos 5.300 T por fotograma (7,5 %); a V6 unos 4.700 T.
+Costo marginal por entidad andando a V7: unos 5.300 T por fotograma (7,5 %).
 
 ## Mapa de memoria medido (R6.3, BENCH_BURN = 292, BENCH_SKIP_SORT = 1)
 | Region | Direcciones | Bytes |
