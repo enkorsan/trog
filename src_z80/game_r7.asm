@@ -1,34 +1,22 @@
-; ============================================================================
-; game_r7.asm - ESQUELETO del juego sobre el renderer (paso 1 del plan de integracion), revision 2
-; Estado: ENSAMBLADO Y PROBADO POR CARLOS (informado, 16-oct) en RVM 128K y 48K. El asistente no ha ejecutado nada.
-;   Contrato: docs/decisions_render_update_3.md (rev. 1) y render.inc.
-; Contenido: bucle blit_all -> logica -> prepare_all -> frame_wait (un paso por iteracion, espera por contador, sin HALT),
-;   dino como entidad 0 (dino_r7.inc), velocidad SPEED_BASE/SPEED_MOD = 26/64, HUD de teclas a la izquierda y contadores PC/LT a la derecha.
-; Renderer: render_core.inc (extraido del R6.3, ver su cabecera). render_init vive alli.
-; Archivos necesarios en src/: config.inc, render.inc, render_core.inc, dino_r7.inc, input_hud.inc, video.inc, stones.inc, font_msg.inc,
-;   sprite_dino.inc, sprite_trog.inc y este fichero.
-; Compilacion (Windows, desde la raiz): build_game_r7.bat (128K) o build_game_r7_48.bat (-DTARGET_48K). Salida: build/game_r7.sna o build/game_r7_48.sna.
-; ============================================================================
-ENT_COUNT       EQU 1           ; solo el dino
-DBG_HUD         EQU 1           ; 1 = PC y LT en la mitad derecha del HUD (linea 16, columnas 19 y 27)
-
+; game_r7.asm rev.3, paso 2a PROBADO por Carlos, 128K/48K, 17-oct 00:45.
+; Local src/, GitHub src_z80/. Compilar build_game_r7*.bat.
+; EGG_TEST_FLOOR=1 como probado. Reaparicion 2b se prueba por separado.
+ENT_COUNT EQU 1
+EGG_TEST_FLOOR EQU 1
+DBG_HUD EQU 1
     IFDEF TARGET_48K
     DEVICE ZXSPECTRUM48
     ELSE
     DEVICE ZXSPECTRUM128
     ENDIF
-
     INCLUDE "config.inc"
     INCLUDE "render.inc"
-
     ORG CODE_BASE
-
 start:
     di
     ld sp,STACK_TOP
     xor a
     out ($FE),a
-
     ld hl,SCR_BASE
     ld de,SCR_BASE+1
     ld bc,$17FF
@@ -44,20 +32,19 @@ start:
     ld bc,FIELD_ATTR_LEN
     ld (hl),ATTR_FIELD
     ldir
-
     call draw_field
     call draw_stones
     call draw_hud_glyphs
     IF DBG_HUD
     call dbg_labels
     ENDIF
-
     PAGE_BG
-    call build_bg               ; fondo limpio (sin sprites) en BG_BASE
+    call decor_init
+    call eggs_setup
+    call build_bg
     call render_init
     call dino_init
     call prepare_all
-
     xor a
     ld (frame_counter),a
     ld (hud_iter),a
@@ -71,31 +58,27 @@ start:
     ei
     ld a,(frame_counter)
     ld (frame_start),a
-
 main_loop:
-    call blit_all               ; vuelca lo preparado en la iteracion anterior
-    call game_update            ; UN paso de logica
-    call prepare_all            ; compone las ventanas de las entidades sucias
+    call blit_all
+    call blit_decor
+    call game_update
+    call prepare_all
+    call prepare_decor
     IF DBG_HUD
     call dbg_hud
     ENDIF
     call frame_wait
     jp main_loop
-
-; game_update - lee el teclado, mueve el dino (entidad 0) y recalcula su posicion de dibujo. Altera: todos
 game_update:
     call read_keys
     ld (key_mask),a
     call show_keys
-    call dino_update            ; A = 1 si hay que redibujar
+    call dino_update
     ld ix,ENTS
     ld (ix+E_DIRTY),a
     or a
     call nz,ent_set_qpos
-    ret
-
-; frame_wait - espera por contador. Una sola lectura de frame_counter; una iteracion tardia no espera y no se recupera.
-;   LT += 1 y PC += n-1 (salvo en iteraciones con HUD, hud_iter = 1). Altera: A, BC, DE, HL
+    jp egg_pickup
 frame_wait:
     ld a,(frame_counter)
     ld c,a
@@ -111,7 +94,7 @@ frame_wait:
     ld (hud_iter),a
     ret
 .late:
-    ld b,a                      ; B = n interrupciones cruzadas
+    ld b,a
     ld a,c
     ld (frame_start),a
     ld a,(hud_iter)
@@ -132,9 +115,7 @@ frame_wait:
     xor a
     ld (hud_iter),a
     ret
-
     IF DBG_HUD
-; dbg_labels - etiquetas PC y LT y valores iniciales. Altera: todos
 dbg_labels:
     ld hl,txt_pc
     ld b,16
@@ -153,11 +134,8 @@ dbg_labels:
     ld c,27
     call b_print_dec4
     ret
-
-txt_pc:     DB "PC",0
-txt_lt:     DB "LT",0
-
-; dbg_hud - cada 16 iteraciones escribe PC (columna 19) y 8 despues LT (columna 27), linea 16. Altera: todos
+txt_pc: DB "PC",0
+txt_lt: DB "LT",0
 dbg_hud:
     ld a,(dbg_tick)
     inc a
@@ -187,7 +165,6 @@ dbg_hud:
     ld b,16
     jp b_print_dec4
     ENDIF
-
 frame_isr:
     push af
     ld a,(frame_counter)
@@ -196,42 +173,36 @@ frame_isr:
     pop af
     ei
     reti
-
-; ---- Variables del esqueleto (en el area de codigo) ---------------------------
-frame_counter:  DB 0
-frame_start:    DB 0
-hud_iter:       DB 0
-dbg_tick:       DB 0
-lt_count:       DW 0
-df_count:       DW 0
-key_mask:       DB 0
-req_dir:        DB $FF
-req_timer:      DB 0
-wait_timer:     DB 0
-dinitdir:       DB 0
-dino_dirty:     DB 0
-
+frame_counter: DB 0
+frame_start: DB 0
+hud_iter: DB 0
+dbg_tick: DB 0
+lt_count: DW 0
+df_count: DW 0
+key_mask: DB 0
+req_dir: DB $FF
+req_timer: DB 0
+wait_timer: DB 0
+dinitdir: DB 0
+dino_dirty: DB 0
     INCLUDE "dino_r7.inc"
     INCLUDE "render_core.inc"
-    INCLUDE "input_hud.inc"         ; read_keys, show_keys, draw_hud_glyphs, font_digits
-    INCLUDE "video.inc"             ; pixel_addr, down_hl, draw_field, draw_stones
-
-; ---- Datos ------------------------------------------------------------------
+    INCLUDE "decor_r7.inc"
+    INCLUDE "eggs_r7.inc"
+    INCLUDE "input_hud.inc"
+    INCLUDE "video.inc"
     IF SPR_BANK == 2
     INCLUDE "sprite_dino.inc"
-    INCLUDE "sprite_trog.inc"       ; ent_set_qpos referencia sprite_trog aunque ENT_COUNT = 1
+    INCLUDE "sprite_trog.inc"
     ENDIF
     INCLUDE "stones.inc"
+    INCLUDE "eggs.inc"
     INCLUDE "font_msg.inc"
-
     ASSERT $ <= SCR_BUFS
-
-; ---- Tabla IM2 y salto a la rutina ---------------------------------------------
     ORG IM2_TABLE
     DS 257,IM2_FILL
     ORG IM2_VECTOR
     jp frame_isr
-
     IF SPR_BANK != 2
     SLOT 3
     PAGE SPR_BANK
@@ -239,9 +210,7 @@ dino_dirty:     DB 0
     INCLUDE "sprite_dino.inc"
     INCLUDE "sprite_trog.inc"
     ENDIF
-
     ASSERT (sprite_dino_end - sprite_dino) == IMG_COUNT*4*144
-
     IFDEF TARGET_48K
     SAVESNA "build/game_r7_48.sna", start
     ELSE
