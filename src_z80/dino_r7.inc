@@ -1,19 +1,7 @@
-; ============================================================================
-; dino_r7.inc - logica del dino como ENTIDAD 0 del renderer (esqueleto, paso 1)
-; Estado: PROBADO POR CARLOS (informado, 16-oct) dentro de game_r7.asm, en RVM 128K y 48K: control OPQA, giros, caidas con la animacion
-;   provisional, desaparicion y reaparicion, sin restos en pantalla ni perdida de fotogramas. La reaparicion es SIEMPRE en el nodo de salida
-;   (provisional). Velocidad cronometrada 4,75 a 4,80 s para 8 intervalos (MAME 4,78 s). Probado solo con ENT_COUNT = 1.
-; Origen: src_z80/dino.inc (version previa): mod_step, node_offset, update_request, dir_from_mask, turn_node, move_dino, check_fall
-;   se copian con estos cambios: dino_x/dino_y/dino_dir -> (ENT0+E_X/E_Y/E_DIR); sin sprite_erase/sprite_draw/saved_valid
-;   (se marca dino_dirty y game_update llama a ent_set_qpos); acumulador modulo SPEED_MOD; caida = animacion del banco R6.
-; NO incluidos aun (siguen en la version previa, pendientes de adaptar): invencibilidad y parada ante el borde (is_inv, edge_stop, dwait),
-;   casa (house_on_street, house_arrive_check), huevos (egg_pickup), dino_respawn de ai.inc (aqui: reaparicion provisional en el nodo de salida).
-; PENDIENTE (decisions_render_update_3.md, seccion 8): el giro pasa por imagenes intermedias en diagonal (pasos de 45 grados, sentido
-;   al azar en la media vuelta, segun Carlos); aqui el giro es todavia directo. Falta leer en el fuente arcade su duracion y si hay avance durante el giro.
-; Requiere: config.inc, render.inc, vars del esqueleto (req_dir, req_timer, wait_timer, key_mask, dino_dirty).
-; ============================================================================
-
-; mod_step - A = A mod NODE_STEP. Salida: Z = multiplo. Altera: A
+; dino_r7.inc, pasos1/2a/2b PROBADOS Y VALIDADOS POR CARLOS, 17-oct02:14.
+; Recuperado del listado2b128K. Solo comentarios compactados; instrucciones/datos sin cambios.
+; dino_reset/dino_respawn/rsp_arm en respawn_r7.inc. Invencibilidad/parada/casa pendientes.
+; Origen logico: dino.inc del motor anterior. Ver docs/analysis/reaparicion_paso2b.md.
 mod_step:
     cp NODE_STEP
     jr c,.done
@@ -22,9 +10,6 @@ mod_step:
 .done:
     or a
     ret
-
-; node_offset - Z si el dino esta a TURN_TOL px o menos de una interseccion real en su eje de marcha.
-;   Salida: D = coordenada de esa interseccion, E = eje (0 = Y, 1 = X). Altera: A, B, C, D, E
 node_offset:
     ld a,(ENT0+E_DIR)
     cp D_LEFT
@@ -74,9 +59,6 @@ node_offset:
 .no:
     or 1
     ret
-
-; turn_node - giro perpendicular: acepta si esta a TURN_TOL px o menos de una interseccion y lo alinea.
-;   Salida: Z = giro aceptado. Si cambia de posicion marca dino_dirty. Conserva BC y DE. Altera: A, HL
 turn_node:
     push bc
     push de
@@ -100,13 +82,11 @@ turn_node:
 .moved:
     ld a,1
     ld (dino_dirty),a
-    xor a                       ; Z
+    xor a
 .out:
     pop de
     pop bc
     ret
-
-; update_request - direccion pedida con retencion KEY_HOLD_FRAMES tras soltar la tecla. Altera: A, DE, HL
 update_request:
     ld a,(key_mask)
     and %1111
@@ -132,12 +112,9 @@ update_request:
     ld a,$FF
     ld (req_dir),a
     ret
-
 dir_from_mask:
     DB $FF,D_UP,D_DOWN,$FF,D_LEFT,$FF,$FF,$FF
     DB D_RIGHT,$FF,$FF,$FF,$FF,$FF,$FF,$FF
-
-; move_dino - avanza 2 px en la direccion actual. Altera: A
 move_dino:
     ld a,(ENT0+E_DIR)
     or a
@@ -166,8 +143,6 @@ move_dino:
     add a,2
     ld (ENT0+E_Y),a
     ret
-
-; check_fall - umbral de caida por direccion (FALL_*). Sin parada ante el borde (pendiente). Altera: A
 check_fall:
     ld a,(ENT0+E_DIR)
     or a
@@ -198,14 +173,12 @@ check_fall:
 .fall:
     ld a,(ENT0+E_DIR)
     xor 1
-    ld (dinitdir),a             ; DINITDIR = NOTDIR(EMOVEDIR): para la reaparicion real (ai.inc)
+    ld (dinitdir),a
     ld a,1
     ld (ENT0+E_STATE),a
     ld a,FALL_ANIM
     ld (ENT0+E_TMR),a
     ret
-
-; dino_update - un paso de logica. Salida: A = 1 si hay que redibujar. Altera: todos salvo IX
 dino_update:
     xor a
     ld (dino_dirty),a
@@ -256,8 +229,6 @@ dino_update:
 .out:
     ld a,(dino_dirty)
     ret
-
-; dino_fall_update - estados 1 (animacion) y 2 (desaparecido), como ent_update del banco R6. Salida: A = dirty
 dino_fall_update:
     ld a,(ENT0+E_STATE)
     cp 1
@@ -290,30 +261,6 @@ dino_fall_update:
     ld (ENT0+E_TMR),a
     ld a,1
     ret
-
-; dino_respawn - reaparicion PROVISIONAL en el nodo de salida, mirando abajo, quieto START_WAIT pasos.
-;   Pendiente: usar dino_respawn de ai.inc (DINO_FIND_CLOSEST + GET_BEST_DIRECTION). Altera: A
-dino_respawn:
-    ld a,DINO_START_X
-    ld (ENT0+E_X),a
-    ld a,DINO_START_Y
-    ld (ENT0+E_Y),a
-    ld a,D_DOWN
-    ld (ENT0+E_DIR),a
-    ld (ENT0+E_IMG),a
-    xor a
-    ld (ENT0+E_STATE),a
-    ld (ENT0+E_VALID),a         ; sin imagen previa: solo se compone la ventana nueva
-    ld (ENT0+E_TMR),a
-    ld (ENT0+E_LEFT),a
-    ld (ENT0+E_PAUSE),a
-    ld a,START_WAIT
-    ld (wait_timer),a
-    ld a,$FF
-    ld (req_dir),a
-    ret
-
-; dino_init - entidad 0 al arrancar (render_init ya fijo E_SBUF, E_IDX y E_TIE). Altera: todos
 dino_init:
     ld a,SPEED_BASE
     ld (ENT0+E_SPD),a
@@ -321,14 +268,12 @@ dino_init:
     ld b,ENT_COUNT
     call stagger_phase
     ld (ENT0+E_ACC),a
-    call dino_respawn
+    call dino_reset
     ld a,1
     ld (ENT0+E_DIRTY),a
     ld ix,ENTS
     jp ent_set_qpos
-
-    ASSERT SPEED_MOD == 64      ; stagger_phase multiplica por 64 con 6 desplazamientos
-; stagger_phase - fase inicial de la entidad A (0..N-1) de B entidades: floor(SPEED_MOD * A / B). Altera: A, BC, D, HL
+    ASSERT SPEED_MOD == 64
 stagger_phase:
     ld l,a
     ld h,0
@@ -337,7 +282,7 @@ stagger_phase:
     add hl,hl
     add hl,hl
     add hl,hl
-    add hl,hl                   ; HL = A * 64
+    add hl,hl
     ld c,b
     ld b,0
     ld d,0

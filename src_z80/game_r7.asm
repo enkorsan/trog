@@ -1,9 +1,9 @@
-; game_r7.asm rev.3, paso 2a PROBADO por Carlos, 128K/48K, 17-oct 00:45.
-; Local src/, GitHub src_z80/. Compilar build_game_r7*.bat.
-; EGG_TEST_FLOOR=1 como probado. Reaparicion 2b se prueba por separado.
-ENT_COUNT EQU 1
-EGG_TEST_FLOOR EQU 1
-DBG_HUD EQU 1
+; game_r7.asm revision4, pasos2a/2b PROBADOS Y VALIDADOS POR CARLOS, 17-oct02:14.
+; Sin ejecucion del asistente. Ver docs/continuation.md y docs/analysis/reaparicion_paso2b.md.
+; ENT_COUNT=1, caidas; proteccion pendiente. Local src/, GitHub src_z80/.
+ENT_COUNT       EQU 1
+EGG_TEST_FLOOR  EQU 1
+DBG_HUD         EQU 1
     IFDEF TARGET_48K
     DEVICE ZXSPECTRUM48
     ELSE
@@ -134,8 +134,8 @@ dbg_labels:
     ld c,27
     call b_print_dec4
     ret
-txt_pc: DB "PC",0
-txt_lt: DB "LT",0
+txt_pc:     DB "PC",0
+txt_lt:     DB "LT",0
 dbg_hud:
     ld a,(dbg_tick)
     inc a
@@ -173,19 +173,20 @@ frame_isr:
     pop af
     ei
     reti
-frame_counter: DB 0
-frame_start: DB 0
-hud_iter: DB 0
-dbg_tick: DB 0
-lt_count: DW 0
-df_count: DW 0
-key_mask: DB 0
-req_dir: DB $FF
-req_timer: DB 0
-wait_timer: DB 0
-dinitdir: DB 0
-dino_dirty: DB 0
+frame_counter:  DB 0
+frame_start:    DB 0
+hud_iter:       DB 0
+dbg_tick:       DB 0
+lt_count:       DW 0
+df_count:       DW 0
+key_mask:       DB 0
+req_dir:        DB $FF
+req_timer:      DB 0
+wait_timer:     DB 0
+dinitdir:       DB 0
+dino_dirty:     DB 0
     INCLUDE "dino_r7.inc"
+    INCLUDE "respawn_r7.inc"
     INCLUDE "render_core.inc"
     INCLUDE "decor_r7.inc"
     INCLUDE "eggs_r7.inc"

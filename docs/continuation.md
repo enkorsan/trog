@@ -1,38 +1,30 @@
-# Continuacion en otra conversacion: Trog ZX, integracion del renderer en el juego
+# Continuacion de Trog ZX
 
-Actualizado: 16-oct-2026, 04:10.
+17-oct-2026, revision2. Sustituye traspaso16-oct04:10 y borrador localrev1.
 
-## Primer mensaje sugerido
-Continuamos Trog ZX: integrar el renderer (R6.3) en el juego. Lee primero, desde el repositorio enkorsan/trog (rama main): docs/status.md (rev. 20), docs/decisions_render_update_2.md (rev. 2, decisiones del 16-oct), docs/analysis/integracion_inventario.md, docs/analysis/render_mediciones_r6_2.md y docs/testing_render.md (rev. 3). El codigo esta en src_z80/ (local: src/). src_z80/bench_r6.asm es el R6.3; la copia local es src/bench_r6_integracion.asm.
-Primera tarea: paso 0 del plan, el contrato del renderer (render.inc): entidades, rectangulo de decorado compuesto por prioridad, espera por contador, macros de paginacion que no generan codigo en 48K, direcciones por EQU y velocidad con modulo 64. Documentarlo antes de codificar y despues construir el esqueleto con el dino como entidad 0. No empezar otro motor ni declarar margen cerrado del juego.
+## Mensaje para otra conversacion
+Continuamos Trog ZX. Lee primero docs/continuation.md y docs/status.md desde enkorsan/trog (rama main), y sigue las lecturas y la siguiente tarea alli indicadas. Codigo en src_z80/ (local: src/). No empezar otro motor ni declarar cerrado el margen de memoria o CPU.
 
-## Decisiones ya cerradas (16-oct)
-- Se adapta el juego al renderer; el codigo anterior de src_z80/ es la version previa (dibujo directo, HALT) y se reutiliza solo su logica (node_offset, update_request, ai.inc, place_eggs, egg_pickup, house_select, exit_tab, house_on_street, read_keys, inv.inc), no su dibujo.
-- Un paso de logica por iteracion, con espera por contador y sin catch-up.
-- Huevos como decorado del fondo limpio (banco 0, $C000, 6.144 bytes) con guardado del suelo bajo cada nodo (32 bytes por nodo, unos 1,4 KB); la retirada restaura ese patron y vuelca un rectangulo sucio. EGG_GROW queda para mucho mas adelante.
-- Escalonado: fase_i = floor(64 * i / N).
-- Velocidad base: acumulador de modulo 64, base 26 (13/32 de 2 px por fotograma), igual para dino y Trogs; ajustable despues. Evidencia en decisions_render_update_2.md.
-- Caida por el borde: animacion sin parpadeo. Prioridad: mayor Y encima; dino encima con igual Y; empate de Trogs provisional.
-- HUD de depuracion en la mitad derecha (columnas 16-31, MG, WN, MN, SX, PC, LT); la izquierda queda libre para puntos, huevos, vidas.
-- 48K deseable: si hace falta un banco extra de 128K es aceptable.
-- Sprites 16x24 sin reducir, cuatro fases horizontales (0, 2, 4, 6 px), 144 bytes por imagen y fase. La H de la fuente de Carlos no se corrige.
+## Lecturas obligatorias
+1. docs/status.md rev23.
+2. docs/analysis/reaparicion_paso2b.md:contrato,auditoria,validacion y limites.
+3. src_z80/game_r7.asm revision4,dino_r7.inc,respawn_r7.inc;seguir INCLUDE para renderer,huevos y recursos. Todos estan en main,no pedir adjuntos de nuevo.
+4. Para programar ahora:src_z80/ai.inc:dino_arm,inv.inc:tick_inv/is_inv/show_inv,dino.inc:update_dino/check_fall,config.inc (START_WAIT,INV_FRAMES,INV_BLINK,DWAIT_FRAMES,STOP_*,FALL_*,EDGE_TURN,STOP_QUIRK).
+5. Contratos:docs/decisions_render_update_2.md rev2,_3.md rev1,_4.md rev0 y testing_render.md rev3;suplementos,no sustituyen decisions.md rev15/testing.md rev12.
+Segun necesidad:analysis/huevos_paso2a.md,integracion_inventario.md,extraccion_render_core.md,render_mediciones_r6_2.md,tamanos_sprites.md,trex_casa_animaciones.md,docs/memoria.md.
 
-## Datos medidos de referencia (RVM 128K toastrack, V7, HUD congelado en VENT = 64)
-- N8 E2 P1 A1 F1: MG 510 (unos 35.700 T libres de media), WN 228, LT 21, PC 0. Sin deficit sostenido hasta +7.000 T por fotograma; con +14.000 T, PC = 2. N5: MG 613-725, PC 0.
-- Memoria del R6.3: datos hasta $A50E, margen de 4.850 bytes hasta IM2_TABLE ($B800). Pila en $7FFF (banco 5, contendido; hipotesis de coste sin medir).
-- Estimacion estatica (asistente): una ventana de movimiento cuesta unos 11.000 T y cada entidad unos 500 T fijos por fotograma.
-- Velocidad: teoria del arcade 4,66 s para 8 intervalos; lectura en MAME 4,78 s; Spectrum con 7/16, 4,51 s.
+## Base probada sincronizada
+Pasos1,2a y2b validados por Carlos,asistente sin ejecutar sjasmplus/emulador. Huevos43,suelo liso/patron,restauracion sin ceros,sin basura/perdidas observadas128K/48K. Reaparicion2b confirmada17-oct02:14:misma calle de caida,rumbo antes de recoger huevo del nodo;inicio separado,rearme de espera/acumulador/peticion. SIN invencibilidad/parada,muerte en sitio ni rumbo hacia casa. No volver a revision3 ni rehacer otra reaparicion.
+Fuentes game_r7-3.asm y respawn_r7-4.inc recibidos llevan sufijos de descarga,no revisiones;game_r7.asm es rev4. dino_r7.inc recuperado del listado2b128K;otros fuentes cotejados con adjuntos. Solo comentarios/cabeceras compactados,logica intacta. No necesitan volver a adjuntarse.
+ENT_COUNT=1,no validar por extension vecinos/prioridad/SPR_BANK!=2/diagonales. Pipeline blit_all+blit_decor -> logica -> prepare_all+prepare_decor -> espera,sin catch-up. Velocidad26/64,pasos2px;8intervalos4,75-4,80s frente a4,78s MAME. EGG_TEST_FLOOR=1 diagnostico,0 suelo normal. Ultimo43/43/all_eggs=1,sin casa aun. decor_push3 no es decor_rect general.
 
-## Pendiente
-- Leer TROGSPEEDPID, TSPEEDUPS e INITSPEEDUPS (TROGTROG.ASM): si la velocidad del Trog cambia durante una oleada en LA5.
-- Si un huevo puede tapar al dino por Y (observar en MAME).
-- Variante 48K del banco; prueba de la pila en zona no contendida; pantalla sombra (no descartada).
-- Subir memoria.md (rev. 0 original) al repositorio; decisions.md y testing.md no se han tocado (los cambios estan en los suplementos).
+## Primera tarea
+Recuperar invencibilidad de reaparicion y parada ante borde del Z80 anterior,no su dibujo. Leer funciones indicadas,documentar interfaz y preparar cambio pequeno con prueba128K/48K;mantener posicion/rumbo ya probados. Luego casa/salidas/victoria y rumbo hacia casa;Trogs/solapes y medidas completas. No cambiar hitos.
 
-## Reglas de trabajo
-- Distinguir siempre codigo propuesto, revisado y probado. El asistente no ha ejecutado sjasmplus ni un emulador; las pruebas reales son las de Carlos. Los modelos Python y los scripts de etiquetas no sustituyen a ensamblar.
-- Tocar el repositorio solo con confirmacion explicita de Carlos y en commits pequenos.
-- No modificar el fuente original del arcade (raiz y carpetas LA3, LA5, NES1, NES2, IMG, SOUND).
+## Reglas de rumbo y decisiones
+2b conserva Manhattan desde auxiliar del borde,eje mayor/vertical en empate,alternativa,inversa de dinitdir descartada,2por huevo en recta,longitud y ultimo U,D,L,R en empate. No solo huevo mas cercano. Motor anterior tenia proteccion/parada y muerte en sitio,aun no migradas. Casa/pina/paredes/peligros no estaban en el rumbo de ai.inc;ver auditoria en reaparicion_paso2b.md.
+ClaseA16px ancho,24alto,ventana3bytes;ampliar4bytes no decidido,CPU prioritaria. Casa/letrero decorado bajo sprites;apariciones Trogs/pozas/fosos igual SI sin colision (verificar). Giro90 una diagonal;180 inicial/diagonal/perpendicular/diagonal/final,sentido aleatorio4direcciones. Punetazo1cuadro/direccion,tiempos/hitboxes pendientes. T-Rex reemplaza dino con pina,objetivo60%,unos32px alto;ancho/buffer/animaciones por definir. Preshifts al cargar por estudiar,no medidos.128K todo si cabe+AY;48K base+cargas/recortes,sin adelantar hito5. AY/menus hito3.
 
-## Archivos que Carlos debe adjuntar si el asistente no puede leerlos del repositorio
-src/bench_r6_integracion.asm, los .bat locales, memoria.md (original rev. 0) y el listado y los simbolos si se vuelve a ensamblar.
+## Herramientas y memoria
+sjasmplus1.24.0,RVM128Ktoastrack/48K,no mezclarPentagon. Scripts raiz build_game_r7.bat/build_game_r7_48.bat usan src/ y -DTARGET_48K.
+Listado2b128K con trama:fin exclusivo$A410,3312bytes hasta$B100. No listado48K nuevo2b,no aplicar cifras2a$A1F4/$A1ED. Suelo guardado$D800-$DD9F(1440bytes). Mapa:buffers$B100,STAT_BUF$B500,ENTS$B580,QPOS$B680,ZLIST$B690,IM2$B800,fondo$C000,pila$7FFF. No margen cerrado ni extrapolar medidas del bench. Pedir listado nuevo solo para medidas/discrepancias,no para leer codigo ya subido.
