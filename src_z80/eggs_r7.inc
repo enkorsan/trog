@@ -1,13 +1,17 @@
-; eggs_r7.inc, paso 2a PROBADO por Carlos en 128K/48K, 17-oct00:45.
+; eggs_r7.inc revision7: paso 2a PROBADO por Carlos en 128K/48K, 17-oct00:45; rev6 (egg_pickup respeta resp_eat) PROBADA. Rev7 (tanda 2a): el ultimo huevo llama a house_build.
 ; eggs_setup antes de build_bg, PAGE_BG activo; egg_pickup despues de dino_update/qpos.
 ; FLOOR_SAVE=$D800-$DD9F (45x32); solo guardar nodos ocupados. Ver huevos_paso2a.md.
-; Ultimo huevo all_eggs=1. Casa y reaparicion real pendientes en esta base de main.
-FLOOR_SAVE EQU BG_BASE+BG_SIZE
-FLOOR_SAVE_END EQU FLOOR_SAVE+NODE_COUNT*32
+; Ultimo huevo all_eggs=1 y house_build (house_r7.inc). Llegada y victoria pendientes (tanda 2b). El estado de la rev7 lo fija Carlos tras la prueba.
+; Guardado del suelo en banco 0 (128K) o RAM plana (48K), $D800-$DD9F.
+; 45 huecos de 32 bytes; solo inicializados los nodos con huevo (43).
+; all_eggs=1 al terminar. Reaparicion: respawn_r7.inc (paso 2b).
+FLOOR_SAVE      EQU BG_BASE+BG_SIZE
+FLOOR_SAVE_END  EQU FLOOR_SAVE+NODE_COUNT*32
     ASSERT FLOOR_SAVE_END <= $10000
     ASSERT EGG_H == 16
     ASSERT NODE_COUNT == 45
     ASSERT (egg_gfx_end-egg_gfx) == EGG_H*4
+
 rand16:
     ld hl,(rng_state)
     ld a,h
@@ -26,6 +30,8 @@ rand16:
     ld h,a
     ld (rng_state),hl
     ret
+
+; A -> cociente A/24. Altera AF,C. Conserva B,DE,HL.
 div24:
     ld c,0
 .loop:
@@ -37,6 +43,7 @@ div24:
 .done:
     ld a,c
     ret
+
 place_eggs:
     ld hl,egg_map
     ld b,NODE_COUNT
@@ -67,6 +74,8 @@ place_eggs:
     ld (eggs_got),a
     ld (all_eggs),a
     ret
+
+; D=fila,E=columna -> B=linea,C=byte. Altera AF,BC; conserva DE,HL.
 node_line_col:
     ld a,d
     add a,a
@@ -84,6 +93,8 @@ node_line_col:
     add a,NODE_X0/8
     ld c,a
     ret
+
+; D=fila,E=columna -> A=indice (0..44). Conserva BC,DE,HL.
 egg_index:
     ld a,d
     add a,a
@@ -92,6 +103,8 @@ egg_index:
     add a,d
     add a,e
     ret
+
+; D=fila,E=columna -> HL=FLOOR_SAVE+indice*32. Altera AF,BC,HL; conserva DE.
 egg_floor_ptr:
     call egg_index
     ld l,a
@@ -104,6 +117,8 @@ egg_floor_ptr:
     ld bc,FLOOR_SAVE
     add hl,bc
     ret
+
+; Preparar la pantalla inicial y guardar el suelo antes de cada huevo. Altera todos.
 eggs_setup:
     ld hl,EGG_SEED
     ld (rng_state),hl
@@ -141,6 +156,8 @@ eggs_setup:
     cp NODE_ROWS
     jr c,.row
     jp draw_egg_counter
+
+; D=fila,E=columna: guarda 2x16 bytes desde pantalla (SIN huevo). Altera AF,BC,DE,HL.
 save_egg_floor:
     call egg_floor_ptr
     push hl
@@ -160,6 +177,8 @@ save_egg_floor:
     call down_hl
     djnz .line
     ret
+
+; D=fila,E=columna: dibuja huevo con mascara, SOLO al montar el nivel.
 draw_egg:
     call node_line_col
     call pixel_addr
@@ -187,7 +206,9 @@ draw_egg:
     call down_hl
     djnz .line
     ret
+
     IF EGG_TEST_FLOOR
+; Trama de diagnostico 16x16 bajo CADA nodo. No es arte definitivo.
 egg_test_floor:
     call node_line_col
     call pixel_addr
@@ -201,6 +222,8 @@ egg_test_floor:
     djnz .line
     ret
     ENDIF
+
+; D=fila,E=columna: restaura suelo en fondo limpio y encola tesela 3x16. Altera todos.
 egg_remove:
     IF SPR_BANK != 2
     PAGE_BG
@@ -248,10 +271,15 @@ egg_remove:
     ld c,a
     ld d,EGG_H
     jp decor_push3
+
+; Recogida cerca del nodo real. Protege indice y alineacion transversal. Altera todos.
 egg_pickup:
     ld a,(ENT0+E_STATE)
     or a
     ret nz
+    ld a,(resp_eat)
+    or a
+    ret z                       ; muerte lejos del nodo: el huevo del nodo espera al primer paso (rev6)
     call node_offset
     ret nz
     ld a,e
@@ -328,7 +356,8 @@ egg_pickup:
     ret nz
     ld a,1
     ld (all_eggs),a
-    ret
+    jp house_build              ; ultimo huevo: construye la casa (arcade: EGGDINO_BUILD)
+
 put_glyph:
     ld b,8
 .line:
@@ -338,6 +367,7 @@ put_glyph:
     inc h
     djnz .line
     ret
+
 digit_ptr:
     add a,'0'-32
     ld l,a
@@ -349,6 +379,7 @@ digit_ptr:
     add hl,de
     ex de,hl
     ret
+
 put_number2:
     ld e,0
 .tens:
@@ -378,6 +409,7 @@ put_number2:
     ld b,HUD_EGG_LINE
     call pixel_addr
     jp put_glyph
+
 draw_egg_counter:
     ld b,HUD_EGG_LINE
     ld c,HUD_EGG_COL
@@ -395,10 +427,11 @@ draw_egg_counter:
     ld a,EGG_TOTAL
     ld c,HUD_EGG_COL+4
     jp put_number2
-egg_map: DS NODE_COUNT
-eggs_left: DB 0
-eggs_got: DB 0
-all_eggs: DB 0
-rng_state: DW EGG_SEED
-eg_line: DB 0
-eg_byte: DB 0
+
+egg_map:    DS NODE_COUNT
+eggs_left:  DB 0
+eggs_got:   DB 0
+all_eggs:   DB 0
+rng_state:  DW EGG_SEED
+eg_line:    DB 0
+eg_byte:    DB 0

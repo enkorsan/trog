@@ -1,7 +1,7 @@
-; dino_r7.inc, pasos1/2a/2b PROBADOS Y VALIDADOS POR CARLOS, 17-oct02:14.
-; Recuperado del listado2b128K. Solo comentarios compactados; instrucciones/datos sin cambios.
-; dino_reset/dino_respawn/rsp_arm en respawn_r7.inc. Invencibilidad/parada/casa pendientes.
-; Origen logico: dino.inc del motor anterior. Ver docs/analysis/reaparicion_paso2b.md.
+; dino_r7.inc revision7. Pasos 1/2a/2b, rev5 (parada ante el borde) y rev6 (resp_eat) PROBADOS Y VALIDADOS POR CARLOS, 17-oct. Rev7 (tanda 2b): check_fall respeta la calle de la casa; dino_update atiende E_STATE=3 (victoria).
+; Base: rev6. check_fall con parada (STOP_*, STOP_QUIRK); dino_update con edge_stop/dwait/EDGE_TURN. El estado de la rev7 lo fija Carlos tras la prueba.
+; Origen logico: dino.inc del motor anterior (check_fall, update_dino). Ver docs/analysis/reaparicion_paso2b.md.
+; dino_reset/dino_respawn/rsp_arm en respawn_r7.inc. Umbrales STOP_*/FALL_* en config.inc. house_on_street, house_arrive_check y win_update en victory_r7.inc.
 mod_step:
     cp NODE_STEP
     jr c,.done
@@ -114,7 +114,11 @@ update_request:
     ret
 dir_from_mask:
     DB $FF,D_UP,D_DOWN,$FF,D_LEFT,$FF,$FF,$FF
+
+
     DB D_RIGHT,$FF,$FF,$FF,$FF,$FF,$FF,$FF
+
+
 move_dino:
     ld a,(ENT0+E_DIR)
     or a
@@ -143,7 +147,19 @@ move_dino:
     add a,2
     ld (ENT0+E_Y),a
     ret
+; check_fall: tras un paso, cae al llegar a FALL_*; el invencible se detiene antes, en STOP_* (edge_stop).
+; Con STOP_QUIRK el punto de parada se evalua una vez (edge_reg) hasta pasar a <=TURN_TOL px de una interseccion.
+; Altera A,B,C,D,E.
 check_fall:
+    IF STOP_QUIRK
+    call node_offset
+    jr nz,.nofree
+    xor a
+    ld (edge_reg),a
+.nofree:
+    ENDIF
+    call house_on_street        ; calle de la salida de la casa: ni parada ni caida (arcade: ISHOME + DINO_LOOK_HOME)
+    jp nz,house_arrive_check
     ld a,(ENT0+E_DIR)
     or a
     jr z,.up
@@ -154,22 +170,45 @@ check_fall:
 .right:
     ld a,(ENT0+E_X)
     cp FALL_RIGHT_X
+    jr nc,.fall
+    cp STOP_RIGHT_X
     ret c
-    jr .fall
+    jr .stop_chk
 .left:
     ld a,(ENT0+E_X)
     cp FALL_LEFT_X+1
+    jr c,.fall
+    cp STOP_LEFT_X+1
     ret nc
-    jr .fall
+    jr .stop_chk
 .up:
     ld a,(ENT0+E_Y)
     cp FALL_TOP_Y+1
+    jr c,.fall
+    cp STOP_TOP_Y+1
     ret nc
-    jr .fall
+    jr .stop_chk
 .down:
     ld a,(ENT0+E_Y)
     cp FALL_BOTTOM_Y
+    jr nc,.fall
+    cp STOP_BOTTOM_Y
     ret c
+.stop_chk:
+    IF STOP_QUIRK
+    ld a,(edge_reg)
+    or a
+    ret nz
+    ld a,1
+    ld (edge_reg),a
+    ENDIF
+    call is_inv
+    ret z
+    ld a,1
+    ld (edge_stop),a
+    xor a
+    ld (dwait),a
+    ret
 .fall:
     ld a,(ENT0+E_DIR)
     xor 1
@@ -184,7 +223,11 @@ dino_update:
     ld (dino_dirty),a
     ld a,(ENT0+E_STATE)
     or a
+    jr z,.alive
+    cp 3
     jp nz,dino_fall_update
+    jp win_update               ; estado 3: victoria (victory_r7.inc)
+.alive:
     call update_request
     ld a,(wait_timer)
     or a
@@ -196,21 +239,46 @@ dino_update:
     ld a,(req_dir)
     ld b,a
     cp $FF
-    jr z,.walk
+    jr z,.no_turn
     ld a,(ENT0+E_DIR)
     cp b
-    jr z,.walk
+    jr z,.no_turn
     xor 1
     cp b
     jr z,.do_turn
     call turn_node
-    jr nz,.walk
+    jr nz,.no_turn
 .do_turn:
     ld a,b
     ld (ENT0+E_DIR),a
     ld (ENT0+E_IMG),a
     ld a,1
     ld (dino_dirty),a
+    xor a
+    ld (edge_stop),a
+    ld (dwait),a
+.no_turn:
+    ld a,(edge_stop)
+    or a
+    jr z,.walk
+    IF EDGE_TURN
+    ld a,(dwait)
+    inc a
+    ld (dwait),a
+    cp DWAIT_FRAMES+1
+    jr c,.out
+    xor a
+    ld (edge_stop),a
+    ld (dwait),a
+    ld a,(ENT0+E_DIR)
+    xor 1
+    ld (ENT0+E_DIR),a
+    ld (ENT0+E_IMG),a
+    ld a,1
+    ld (dino_dirty),a
+    ELSE
+    jr .out
+    ENDIF
 .walk:
     ld a,(ENT0+E_ACC)
     ld hl,ENT0+E_SPD
@@ -222,6 +290,7 @@ dino_update:
     call move_dino
     ld a,1
     ld (dino_dirty),a
+    ld (resp_eat),a             ; tras un paso vuelve a valer la recogida de huevo (rev6)
     call check_fall
     jr .out
 .keep:

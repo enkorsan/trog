@@ -1,3 +1,4 @@
+; config.inc - constantes y opciones. STOP_TOP_Y y STOP_BOTTOM_Y ajustados por Carlos (17-oct) tras comparar con el arcade: ver STOP_TOP_SHIFT y STOP_BOTTOM_SHIFT.
 ; ---- Opciones de compilacion -------------------------------------------------
 DEBUG_CHEAT     EQU 1           ; 1 = teclas de depuracion: H invencibilidad permanente, K muerte sin caida, R nueva distribucion de huevos
 EDGE_TURN       EQU 1           ; 1 = el invencible parado ante el borde da media vuelta pasado DWAIT_FRAMES (0 = se queda parado)
@@ -99,14 +100,14 @@ HUD_EGG_COL     EQU 1                   ; columna del icono; despues: 2 digitos,
 TURN_TOL        EQU 2
 EGG_TOL         EQU 2           ; recogida de huevo: +-EGG_TOL px sobre la interseccion
     ASSERT EGG_TOL <= TURN_TOL
-; ---- Velocidad: pasos de 2 px por cada 16 fotogramas (7 = 43,75 px/s; 8 = 50 px/s; 6 = 37,5 px/s) ----
-DINO_SPEED      EQU 7
+; ---- Velocidad del motor antiguo (main.asm): pasos de 2 px por cada 16 fotogramas (7 = 43,75 px/s; 8 = 50 px/s; 6 = 37,5 px/s) ----
+DINO_SPEED      EQU 7           ; NO lo usa game_r7.asm: usa SPEED_BASE/SPEED_MOD de render.inc (26/64)
 
 ; ---- Tiempos. El arcade cuenta ticks de 54,71 Hz; aqui fotogramas de 50 Hz (x 0,914) ----
 START_WAIT      EQU 55          ; quieto al aparecer: 60 ticks
 INV_FRAMES      EQU 238         ; invencibilidad al aparecer: (60 + 200) ticks
 INV_BLINK       EQU 73          ; el indicador parpadea en el ultimo tramo: 80 ticks
-DEAD_WAIT_FRAMES EQU 55         ; apagado entre la muerte y la reaparicion: 60 ticks (DINO_ETERNAL)
+DEAD_WAIT_FRAMES EQU 55         ; apagado entre la muerte y la reaparicion: 60 ticks (DINO_ETERNAL); game_r7.asm usa FALL_DEAD de render.inc (mismo valor)
 
 ; ---- Caida: punto de pies (x + 8, y + 13) sobre el suelo X FLOOR_LEFT..FLOOR_RIGHT, Y FLOOR_TOP..FLOOR_BOTTOM ----
 ; Arriba e izquierda: pie en la primera linea o columna de suelo o antes. Abajo y derecha: pie en la primera linea o columna de agua o despues. Posiciones pares.
@@ -114,16 +115,19 @@ FALL_TOP_Y      EQU FLOOR_TOP-14        ; 26
 FALL_BOTTOM_Y   EQU FLOOR_BOTTOM-11     ; 164
 FALL_LEFT_X     EQU FLOOR_LEFT-8        ; 4
 FALL_RIGHT_X    EQU FLOOR_RIGHT+1-8     ; 236
-FALL_FRAMES     EQU 50          ; duracion provisional de la animacion de caida (parpadeo); el arcade usa FRANIMATE_DIR con DEATH_UP
+FALL_FRAMES     EQU 50          ; animacion de caida del motor antiguo (parpadeo). NO lo usa game_r7.asm: usa FALL_ANIM de render.inc (provisional); el arcade usa FRANIMATE_DIR con DEATH_UP
 
-; ---- Parada ante el borde: 4 px antes del punto auxiliar del borde (media calle, 12 px, de la ultima interseccion), desplazada EDGE_GAP hacia fuera ----
+; ---- Parada ante el borde: base 4 px antes del punto auxiliar del borde (media calle, 12 px, de la ultima interseccion), desplazada EDGE_GAP hacia fuera; en Y, ademas el ajuste vertical de Carlos (17-oct) ----
+STOP_TOP_SHIFT    EQU 4         ; limite superior 4 px mas abajo (hacia dentro del campo); par
+STOP_BOTTOM_SHIFT EQU 4         ; limite inferior 4 px mas arriba (hacia dentro del campo); par
 STOP_LEFT_X     EQU NODE_X0-8-EDGE_GAP          ; 12
 STOP_RIGHT_X    EQU NODE_X_LAST+8+EDGE_GAP      ; 228
-STOP_TOP_Y      EQU NODE_Y0-8-EDGE_GAP          ; 40
-STOP_BOTTOM_Y   EQU NODE_Y_LAST+8+EDGE_GAP      ; 160
+STOP_TOP_Y      EQU NODE_Y0-8-EDGE_GAP+STOP_TOP_SHIFT           ; 44 (antes 40)
+STOP_BOTTOM_Y   EQU NODE_Y_LAST+8+EDGE_GAP-STOP_BOTTOM_SHIFT   ; 156 (antes 160)
 
+    ASSERT (STOP_TOP_SHIFT & 1) == 0
+    ASSERT (STOP_BOTTOM_SHIFT & 1) == 0
     ASSERT STOP_LEFT_X > FALL_LEFT_X
     ASSERT STOP_RIGHT_X < FALL_RIGHT_X
     ASSERT STOP_TOP_Y > FALL_TOP_Y
     ASSERT STOP_BOTTOM_Y < FALL_BOTTOM_Y
-
